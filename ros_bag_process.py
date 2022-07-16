@@ -8,6 +8,7 @@ from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Path
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+import pandas as pd 
 
 class StepRecorder:
     def __init__(self):
@@ -75,10 +76,15 @@ class StepRecorder:
         # transform the goal coordinates in robot's frame
         goal = self.transform_lg(goal, self.X, self.Y, self.PSI).reshape(-1)
 
+        # print("laser_scan shape: ",len(laser_scan))
+        # print("goal shape: ",len(goal))
+
         # observation is laser_scan + goal coordinate
         return np.concatenate([laser_scan, goal])
 
     def get_act(self):
+        print(len(self.v))
+        print(len(self.w))
         return np.array([self.v, self.w])
 
 if __name__ == "__main__":
@@ -118,17 +124,18 @@ if __name__ == "__main__":
     obss = []
     acts = []
     time = rospy.get_time()
-    while not rospy.is_shutdown():
+    while not rospy.is_shutdown() and len(obss) <= 70:
 
-        if velocity_sub.get_num_connections() == 0 and\
-            len(obss) != 0 and len(acts) != 0:
-            break
+        # if velocity_sub.get_num_connections() == 0 and\
+        #     len(obss) != 0 and len(acts) != 0:
+        #     break
 
         # print("num of connection: ",velocity_sub.get_num_connections())
         if velocity_sub.get_num_connections() != 0 and \
             not isinstance(step_recorder.laser_scan, type(None)) and \
             not isinstance(step_recorder.global_path, type(None)):
-            # input()
+
+
             # laser scan data + goal's location in robot's coordinate
             obs = step_recorder.get_obs()
             # linear velocity and angular velocity
@@ -136,17 +143,29 @@ if __name__ == "__main__":
             obss.append(obs)
             acts.append(act)
 
-            while rospy.get_time() - time < 1/FREQUENCY and\
-                velocity_sub.get_num_connections() != 0:
+            # print("before while ", len(obss))
+
+            while rospy.get_time() - time < 1/FREQUENCY:
+                # if velocity_sub.get_num_connections() == 0:
+                #     print("obss size: ", len(obss))
+                #     print("acts size: ", len(acts))
+                #     break
                 rospy.sleep(0.1/FREQUENCY)
+                
 
             time = rospy.get_time()
 
-        # if velocity_sub.get_num_connections() == 0 and\
-        #     len(obss) != 0 and len(acts) != 0:
-        #     break
+        # if velocity_sub.get_num_connections() != 0 and\
+        #     not isinstance(step_recorder.laser_scan, type(None)) and\
+        #     not isinstance(step_recorder.global_path, type(None)):
             
-
+            
     ## Save the obss and acts in .csv maybe... 
     print("obss size: ", len(obss))
     print("acts size: ", len(acts))
+    # print(obss)
+    # print(acts)
+    pd.DataFrame(obss).to_csv("observation_act_1_obs.csv", header=None, index=False)
+    pd.DataFrame(acts).to_csv("observation_act_1_act.csv", header=None, index=False)
+
+
